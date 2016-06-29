@@ -3,17 +3,17 @@
 [BEGIN_COT_EXT]
 Name=Index
 Description=Home Page
-Version=0.9.1
-Date=2011-08-19
+Version=1.0.1
+Date=2015-01-13
 Author=Cotonti Team
-Copyright=(c) Cotonti Team 2008-2011
+Copyright=(c) Cotonti Team 2008-2016
 Notes=BSD License
 Auth_guests=R
 Lock_guests=A
 Auth_members=R
 Lock_members=
 Recommends_modules=page
-Recommends_plugins=news,recentitems
+Recommends_plugins=indexnews,recentitems
 [END_COT_EXT]
 ==================== */
 

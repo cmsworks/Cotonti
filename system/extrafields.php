@@ -16,7 +16,7 @@ require_once cot_incfile('forms');
  * Returns Extra fields edit fields
  *
  * @param string $name Variable name
- * @param array $extrafields Extra fields data
+ * @param array $extrafield Extra fields data
  * @param string $data Existing data for fields
  * @return string
  */
@@ -72,7 +72,8 @@ function cot_build_extrafields($name, $extrafield, $data)
 			break;
 
 		case 'checkbox':
-			$result = cot_checkbox($data, $name, $extrafield['field_description'], '', '1', $extrafield['field_html']);
+			$title = cot_extrafield_title($extrafield);
+			$result = cot_checkbox($data, $name, $title, '', '1', $extrafield['field_html']);
 			break;
 
 		case 'datetime':
@@ -145,22 +146,28 @@ function cot_build_extrafields($name, $extrafield, $data)
  * Imports Extra fields data
  *
  * @param string $inputname Variable name (or value for source=D)
- * @param array $extrafields Extra fields data
+ * @param $extrafield
  * @param string $source Source type: G (GET), P (POST), C (COOKIE) or D (variable filtering)
  * @param string $oldvalue Old value of extrafield
+ * @param string $titlePrefix
  * @return string
  */
-function cot_import_extrafields($inputname, $extrafield, $source='P', $oldvalue='')
+function cot_import_extrafields($inputname, $extrafield, $source = 'P', $oldvalue = '', $titlePrefix = '')
 {
 	global $L;
+
+    $exfld_title = cot_extrafield_title($extrafield, $titlePrefix);
+
+    $import = null;
 	switch ($extrafield['field_type'])
 	{
 		case 'input':
 			$import = ($extrafield['field_parse'] == 'Text') ? cot_import($inputname, $source, 'TXT') : cot_import($inputname, $source, 'HTM');
 			if (!empty($extrafield['field_params']) && !is_null($import) && !preg_match($extrafield['field_params'], $import))
 			{
-				$L['field_pregmatch_' . $extrafield['field_name']] = (isset($L['field_pregmatch_' . $extrafield['field_name']])) ? $L['field_pregmatch_' . $extrafield['field_name']] : $L['field_pregmatch'];
-				cot_error('field_pregmatch_' . $extrafield['field_name'], $inputname);
+                $errMsg = (isset($L['field_pregmatch_' . $extrafield['field_name']])) ?
+                    $L['field_pregmatch_' . $extrafield['field_name']] : $exfld_title.': '.$L['field_pregmatch'];
+				cot_error($errMsg, $inputname);
 			}
 			break;
 
@@ -170,15 +177,18 @@ function cot_import_extrafields($inputname, $extrafield, $source='P', $oldvalue=
 			$import = cot_import($inputname, $source, 'INT');
 			if (!is_null($import) && !empty($extrafield['field_params']))
 			{
-				list($min, $max) = explode(",",$extrafield['field_params'], 2);
+				list($min, $max) = explode(",", $extrafield['field_params'], 2);
 				$min = (int) $min;
 				$max = (int) $max;
 				if ($import < $min || $import > $max)
 				{
-					cot_error('field_range_' . $extrafield['field_name'], $inputname);
+                    $errMsg = (isset($L['field_range_' . $extrafield['field_name']])) ?
+                        $L['field_range_' . $extrafield['field_name']] : $exfld_title.': '.$L['field_range'];
+					cot_error($errMsg, $inputname);
 				}
 			}
 			break;
+
 		case 'currency':
 		case 'double':
 			$extrafield['field_params'] = str_replace(array(' , ', ', ', ' ,'), ',', $extrafield['field_params']);
@@ -194,7 +204,9 @@ function cot_import_extrafields($inputname, $extrafield, $source='P', $oldvalue=
 				$max = (int) $max;
 				if ($import < $min || $import > $max)
 				{
-					cot_error('field_range_' . $extrafield['field_name'], $inputname);
+                    $errMsg = (isset($L['field_range_' . $extrafield['field_name']])) ?
+                        $L['field_range_' . $extrafield['field_name']] : $exfld_title.': '.$L['field_range'];
+                    cot_error($errMsg, $inputname);
 				}
 			}
 			break;
@@ -210,13 +222,14 @@ function cot_import_extrafields($inputname, $extrafield, $source='P', $oldvalue=
 			$import = cot_import($inputname, $source, 'HTM');
 			if (!is_null($import) && !in_array(trim($import), $opt_array))
 			{
-				$L['field_notinarray_' . $extrafield['field_name']] = (isset($L['field_notinarray_' . $extrafield['field_name']])) ? $L['field_notinarray_' . $extrafield['field_name']] : $L['field_notinarray'];
-				cot_error('field_notinarray_' . $extrafield['field_name'], $inputname);
+				$errMsg = (isset($L['field_notinarray_' . $extrafield['field_name']])) ? 
+					$L['field_notinarray_' . $extrafield['field_name']] : $exfld_title.': '.$L['field_notinarray'];
+				cot_error($errMsg, $inputname);
 			}
 			break;
 
 		case 'checkbox':
-			$import = cot_import($inputname, $source, 'BOL');
+			$import = (int)cot_import($inputname, $source, 'BOL');
 			break;
 
 		case 'datetime':
@@ -262,8 +275,9 @@ function cot_import_extrafields($inputname, $extrafield, $source='P', $oldvalue=
 					$import[$k] = cot_import($v, 'D', 'HTM');
 					if (!is_null($import[$k]) && !in_array($import[$k], $opt_array))
 					{
-						$L['field_notinarray_' . $extrafield['field_name']] = (isset($L['field_notinarray_' . $extrafield['field_name']])) ? $L['field_notinarray_' . $extrafield['field_name']] : $L['field_notinarray'];
-						cot_error('field_notinarray_' . $extrafield['field_name'], $inputname);
+                        $errMsg = (isset($L['field_notinarray_' . $extrafield['field_name']])) ?
+                            $L['field_notinarray_' . $extrafield['field_name']] : $exfld_title.': '.$L['field_notinarray'];
+                        cot_error($errMsg, $inputname);
 					}
 				}
 			}
@@ -343,7 +357,10 @@ function cot_import_extrafields($inputname, $extrafield, $source='P', $oldvalue=
 				}
 				else
 				{
-					cot_error('field_extension_' . $extrafield['field_name'], $inputname);
+                    $errMsg = (isset($L['field_extension_' . $extrafield['field_name']])) ?
+                        $L['field_extension_' . $extrafield['field_name']] : $exfld_title.': '.$L['field_extension'];
+                    cot_error($errMsg, $inputname);
+
 					$exfldsize[$extrafield['field_name']] = null;
 					$import = null;
 				}
@@ -368,20 +385,49 @@ function cot_import_extrafields($inputname, $extrafield, $source='P', $oldvalue=
 			$import = $exfldsize[$extrafield['field_variants']];
 			break;
 	}
+
 	if ((is_null($import) || $import === '') && $extrafield['field_required'])
 	{
-		$fname = (!empty($extrafield['field_description'])) ? $extrafield['field_description'] : $extrafield['field_name'];
-		$msg = (isset($L['field_required_' . $extrafield['field_name']])) ? 'field_required_' . $extrafield['field_name'] : $L['field_required'].': '.$fname;
+		$msg = (isset(cot::$L['field_required_' . $extrafield['field_name']])) ? cot::$L['field_required_' . $extrafield['field_name']] :
+            cot::$L['field_required'].': '.$exfld_title;
 		cot_error($msg, $inputname);
 	}
 	return $import;
 }
 
 /**
+ * Extrafield title
+ *
+ * @param array  $extrafield
+ * @param string $titlePrefix
+ * @return string
+ */
+function cot_extrafield_title($extrafield, $titlePrefix = '') {
+    $title = $extrafield['field_description'];
+
+    $fieldLocation = '';
+    if(isset($extrafield['field_location'])) $fieldLocation = $extrafield['field_location'];
+
+    if($titlePrefix != '' && isset(cot::$L[$titlePrefix.$extrafield['field_name'].'_title'])) {
+        $title = cot::$L[$titlePrefix.$extrafield['field_name'].'_title'];
+
+    } elseif($fieldLocation != '' && isset(cot::$L[$fieldLocation.'_'.$extrafield['field_name'].'_title'])) {
+        $title = cot::$L[$fieldLocation.'_'.$extrafield['field_name'].'_title'];
+
+    } elseif(isset(cot::$L[$extrafield['field_name'].'_title'])) {
+        $title = cot::$L[$extrafield['field_name'].'_title'];
+    }
+    
+    if($title == '') $title = $extrafield['field_name'];
+
+    return $title;
+}
+
+/**
  * Returns Extra fields data
  *
  * @param string $name Lang row
- * @param array $extrafields Extra fields data
+ * @param array $extrafield Extra fields data
  * @param string $value Existing user value
  * @param string $parser Non-default parser to use
  * @return string
@@ -604,20 +650,20 @@ function cot_extrafield_add($location, $name, $type, $html='', $variants='', $de
 		case 'radio':
 		case 'range':
 		case 'file':
-		case 'input': $sqltype = "VARCHAR(255)";
+		case 'input': $sqltype = "VARCHAR(255) DEFAULT ''";
 			break;
-		case 'inputint': $sqltype = "int(11) NOT NULL default '0'";
+		case 'inputint': $sqltype = "int(11) DEFAULT '0'";
 			break;
-		case 'currency': $sqltype = "DOUBLE(13,2) NOT NULL default '0'";
+		case 'currency': $sqltype = "DOUBLE(13,2) DEFAULT '0'";
 			break;
-		case 'double': $sqltype = "DOUBLE NOT NULL default '0'";
+		case 'double': $sqltype = "DOUBLE DEFAULT '0'";
 			break;
 		case 'checklistbox':
-		case 'textarea': $sqltype = 'TEXT';
+		case 'textarea': $sqltype = "TEXT DEFAULT ''";
 			break;
-		case 'checkbox': $sqltype = 'BOOL';
+		case 'checkbox': $sqltype = 'TINYINT(1) UNSIGNED'; //'BOOL';
 			break;
-		case 'datetime': $sqltype = "int(11) NOT NULL default '0'";
+		case 'datetime': $sqltype = "int(11) DEFAULT '0'";
 			break;
 		case 'country': $sqltype = "CHAR(2)";
 			break;
@@ -716,20 +762,20 @@ function cot_extrafield_update($location, $oldname, $name, $type, $html='', $var
 		case 'radio':
 		case 'range':
 		case 'file':
-		case 'input': $sqltype = "VARCHAR(255)";
+		case 'input': $sqltype = "VARCHAR(255) DEFAULT ''";
 			break;
-		case 'inputint': $sqltype = "int(11) NOT NULL default '0'";
+		case 'inputint': $sqltype = "int(11) DEFAULT '0'";
 			break;
-		case 'currency': $sqltype = "DOUBLE(13,2) NOT NULL default '0'";
+		case 'currency': $sqltype = "DOUBLE(13,2) DEFAULT '0'";
 			break;
-		case 'double': $sqltype = "DOUBLE NOT NULL default '0'";
+		case 'double': $sqltype = "DOUBLE DEFAULT '0'";
 			break;
 		case 'checklistbox':
-		case 'textarea': $sqltype = 'TEXT';
+		case 'textarea': $sqltype = "TEXT DEFAULT ''";
 			break;
-		case 'checkbox': $sqltype = 'BOOL';
+		case 'checkbox': $sqltype = 'TINYINT(1) UNSIGNED'; //'BOOL';
 			break;
-		case 'datetime': $sqltype = "int(11) NOT NULL default '0'";
+		case 'datetime': $sqltype = "int(11) DEFAULT '0'";
 			break;
 		case 'country': $sqltype = "CHAR(2)";
 			break;

@@ -12,7 +12,7 @@ defined('COT_CODE') or die('Wrong URL');
 // System requirements check
 if (!defined('COT_INSTALL'))
 {
-	(function_exists('version_compare') && version_compare(PHP_VERSION, '5.2.3', '>=')) or die('Cotonti system requirements: PHP 5.2.3 or above.'); // TODO: Need translate
+	(function_exists('version_compare') && version_compare(PHP_VERSION, '5.3.3', '>=')) or die('Cotonti system requirements: PHP 5.3.3 or above.'); // TODO: Need translate
 	extension_loaded('mbstring') or die('Cotonti system requirements: mbstring PHP extension must be loaded.'); // TODO: Need translate
 }
 
@@ -38,8 +38,8 @@ $R = array();
 $i = explode(' ', microtime());
 $sys['starttime'] = $i[1] + $i[0];
 
-$cfg['version'] = '0.9.18';
-$cfg['dbversion'] = '0.9.18';
+$cfg['version'] = '0.9.19';
+$cfg['dbversion'] = '0.9.19';
 
 // Set default file permissions if not present in config
 if (!isset($cfg['file_perms']))
@@ -159,7 +159,7 @@ class cot
 	public static $usr;
 
 	/**
-	 * Initalizes static members. Call this function once all globals are defined.
+	 * Initializes static members. Call this function once all globals are defined.
 	 */
 	public static function init()
 	{
@@ -583,12 +583,12 @@ function cot_import($name, $source, $filter, $maxlen = 0, $dieonerror = false, $
  * @param mixed $nameslist List of Variables names to import, can be:<br />
  * 				string 'name1, name2 , ...' - list of variable names comma separated.<br />
  * 				array('name1', 'name2', ...) - list of variable names only.
-	* 				In that case $filter parameter nust be specified.<br />
+ * 				In that case $filter parameter must be specified.<br />
  * 				array('name1' => 'TYPE1', 'name2' => 'TYPE2' ,...) - list of variable names with their filter types
  * @param string $source Source type: G/GET, P/POST, C/COOKIE, R/REQUEST, PUT, DELETE or D/DIRECT (variable filtering)
  * @param array $origindata Array with origin data that will be extended with imported one
  * @param string $nameprefix Unified prefix for Variables names
- * @param string $filter Filter type, can be setted as:<br />
+ * @param string $filter Filter type, can be set as:<br />
  * 				string 'FLT' - single filter string for all Variables<br />
  * 				string 'FLT1, FLT2, ...' - comma separated string with filters corresponding to Variable names<br />
  * 				array('FLT1', 'FLT2', ...) - array of filters<br />
@@ -599,7 +599,7 @@ function cot_import($name, $source, $filter, $maxlen = 0, $dieonerror = false, $
  * @param int $maxlen Length limit
  * @param bool $dieonerror Die with fatal error on wrong input
  * @param bool $buffer Try to load from input buffer (previously submitted) if current value is empty
- * @return boolean|array Returns combined array of data or FALSE if wrong parameters setted
+ * @return boolean|array Returns combined array of data or FALSE if wrong parameters set
  */
 function cot_import_list($nameslist=array(), $source='P', $origindata=array(), $nameprefix='', $filter=null, $arrayprefix=false, $maxlen=0, $dieonerror=false, $buffer=false)
 {
@@ -621,7 +621,7 @@ function cot_import_list($nameslist=array(), $source='P', $origindata=array(), $
 	}
 	if (!$direct && sizeof($nameslist) == 0)
 	{
-		return false; // no propper name list
+		return false; // no proper name list
 	}
 	elseif (sizeof($nameslist) == 0)
 	{ // direct by origin
@@ -980,12 +980,21 @@ function cot_outputfilters($output)
 	}
 	/* ==== */
 
-	$output = preg_replace_callback('#<form\s+[^>]*method=["\']?post["\']?[^>]*>#i',
-		function ($m) {
-			return $m[0] . (preg_match('/class\s*=\s*["\']?.*?[\s"\']xp-off[\s"\'].*?["\']?/i', $m[0]) ? '' : cot_xp());
-		}, $output);
+	$output = preg_replace_callback('#<form\s+[^>]*method=["\']?post["\']?[^>]*>#i', 'cot_outputfilters_callback', $output);
 
 	return($output);
+}
+
+/**
+ * Used with cot_outputfilters
+ *   It is needed because php 5.2 does not support anonymous functions. So during the installation we can not even show
+ *   an error message.
+ * @param $m
+ * @return string
+ */
+function cot_outputfilters_callback($m)
+{
+	return $m[0] . (preg_match('/class\s*=\s*["\']?.*?[\s"\']xp-off[\s"\'].*?["\']?/i', $m[0]) ? '' : cot_xp());
 }
 
 /**
@@ -1008,24 +1017,32 @@ function cot_plugin_active($name)
  */
 function cot_rmdir($dir)
 {
+    if(empty($dir) && $dir != '0') return false;
+
 	static $cnt = 0;
-	$dp = opendir($dir);
-	while ($f = readdir($dp))
-	{
-		$path = $dir . '/' . $f;
-		if ($f != '.' && $f != '..' && is_dir($path))
-		{
-			cot_rmdir($path);
-		}
-		elseif ($f != '.' && $f != '..')
-		{
-			unlink($path);
-			$cnt++;
-		}
-	}
-	closedir($dp);
-	rmdir($dir);
-	$cnt++;
+
+    if (is_dir($dir)) {
+        $objects = scandir($dir);
+        foreach ($objects as $f) {
+            $path = $dir . DIRECTORY_SEPARATOR . $f;
+            if ($f != "." && $f != "..")
+            {
+                if (filetype($path) == "dir")
+                {
+                    cot_rmdir($path);
+                }
+                else
+                {
+                    unlink($path);
+                    $cnt++;
+                }
+            }
+        }
+        reset($objects);
+        rmdir($dir);
+        $cnt++;
+    }
+
 	return $cnt;
 }
 
@@ -2200,12 +2217,12 @@ function cot_generate_usertags($user_data, $tag_prefix = '', $emptyname='', $all
 				$temp_array['GROUPS'] = cot_build_groupsms($user_data['user_id'], FALSE, $user_data['user_maingrp']);
 			}
 			// Extra fields
-			if (isset($cot_extrafields[$db_users]))
-			{
-				foreach ($cot_extrafields[$db_users] as $exfld)
-				{
+			if (!empty(cot::$extrafields[cot::$db->users])) {
+				foreach (cot::$extrafields[cot::$db->users] as $exfld) {
+                    $exfld_title = cot_extrafield_title($exfld, 'user_');
+
 					$temp_array[strtoupper($exfld['field_name'])] = cot_build_extrafields_data('user', $exfld, $user_data['user_' . $exfld['field_name']]);
-					$temp_array[strtoupper($exfld['field_name']) . '_TITLE'] = isset($L['user_' . $exfld['field_name'] . '_title']) ? $L['user_' . $exfld['field_name'] . '_title'] : $exfld['field_description'];
+					$temp_array[strtoupper($exfld['field_name']) . '_TITLE'] = $exfld_title;
 					$temp_array[strtoupper($exfld['field_name']) . '_VALUE'] = $user_data['user_' . $exfld['field_name']];
 				}
 			}
@@ -3379,8 +3396,8 @@ function cot_lang_determine()
 }
 
 /**
- * Returns path to a CSS file for user selected color scheme. 
- * The default search order is:  
+ * Returns path to a CSS file for user selected color scheme.
+ * The default search order is:
  * 1) `css` subfolder of user selected theme
  * 2) Main folder of user selected theme
  *
@@ -3606,7 +3623,7 @@ if (!function_exists('strptime'))
  */
 function cot_date2stamp($date, $format = null)
 {
-	if ($date == '0000-00-00') return null;
+	if ($date == '0000-00-00' || mb_strtolower($date) == 'null' || is_null($date)) return null;
 	if (!$format)
 	{
 		preg_match('#(\d{4})-(\d{2})-(\d{2})#', $date, $m);
